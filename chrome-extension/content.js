@@ -248,15 +248,170 @@ function exportVisibleLikedVideos() {
   return data.length;
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== "EXPORT_VISIBLE_LIKED_VIDEOS") return false;
-
+function sendProgress(text) {
   try {
-    const count = exportVisibleLikedVideos();
-    sendResponse({ ok: true, count });
+    chrome.runtime.sendMessage({ type: "EXPORT_PROGRESS", text }, () => {
+      // Ignore "receiving end does not exist" safely.
+      void chrome.runtime.lastError;
+    });
   } catch (error) {
-    sendResponse({ ok: false, error: error.message });
+    console.warn("Progress message failed:", error);
+  }
+}
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function countLoadedVideoItems() {
+  function isVisible(el) {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
   }
 
-  return true;
+  function getVideoUrl(root) {
+    const link = [...root.querySelectorAll("a[href]")]
+      .find(item => /youtube\.com\/watch|youtu\.be\//i.test(item.href));
+
+    if (!link) return "";
+
+    try {
+      const url = new URL(link.href);
+      const videoId = url.searchParams.get("v");
+      return videoId ? `https://www.youtube.com/watch?v=${videoId}` : link.href.split("&")[0];
+    } catch {
+      return link.href;
+    }
+  }
+
+  const urls = new Set();
+
+  [...document.querySelectorAll("article, li, div")]
+    .filter(isVisible)
+    .forEach(item => {
+      const url = getVideoUrl(item);
+      if (url) urls.add(url);
+    });
+
+  return urls.size;
+}
+
+function findAutoScrollTarget() {
+  const candidates = [
+    document.scrollingElement,
+    document.documentElement,
+    document.body
+  ].filter(Boolean);
+
+  const container =
+    candidates.find(el => el.scrollHeight > el.clientHeight + 8) ||
+    candidates[0];
+
+  console.log("scroll container", {
+    tagName: container?.tagName,
+    id: container?.id || "",
+    className: String(container?.className || ""),
+    overflowY: container ? getComputedStyle(container).overflowY : "",
+    scrollHeight: container?.scrollHeight || 0,
+    clientHeight: container?.clientHeight || 0
+  });
+
+  return container;
+}
+
+function scrollTargetDown(scrollTarget) {
+  scrollTarget.scrollTop = scrollTarget.scrollHeight;
+}
+
+async function autoScrollAndExportLikedVideos() {
+  console.log("auto-scroll started");
+
+  const maxScrollAttempts = 60;
+  const maxDurationMs = 60000;
+  const maxNoNewItemTries = 5;
+  const scrollDelayMs = 1500;
+  const scrollContainer = findAutoScrollTarget();
+
+  if (!scrollContainer) {
+    throw new Error("No scroll target found.");
+  }
+
+  const startedAt = Date.now();
+  let previousCount = countLoadedVideoItems();
+  let previousScrollHeight = scrollContainer.scrollHeight;
+  let noNewItemTries = 0;
+
+  console.log(`item count ${previousCount}`);
+  console.log(`current scroll height ${previousScrollHeight}`);
+  sendProgress("Scrolling...");
+  sendProgress(`Loaded ${previousCount} items`);
+
+  for (let attempt = 1; attempt <= maxScrollAttempts; attempt += 1) {
+    if (Date.now() - startedAt > maxDurationMs) {
+      break;
+    }
+
+    console.log(`scroll attempt ${attempt}`);
+    scrollTargetDown(scrollContainer);
+
+    await wait(scrollDelayMs);
+
+    const currentCount = countLoadedVideoItems();
+    const currentScrollHeight = scrollContainer.scrollHeight;
+    console.log(`item count ${currentCount}`);
+    console.log(`current scroll height ${currentScrollHeight}`);
+    sendProgress(`Loaded ${currentCount} items`);
+
+    if (currentCount > previousCount || currentScrollHeight > previousScrollHeight) {
+      previousCount = currentCount;
+      previousScrollHeight = currentScrollHeight;
+      noNewItemTries = 0;
+    } else {
+      noNewItemTries += 1;
+    }
+
+    const reachedEnd =
+      scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 8;
+
+    if (reachedEnd && noNewItemTries >= maxNoNewItemTries) {
+      break;
+    }
+  }
+
+  console.log("auto-scroll finished");
+  console.log("export started");
+  sendProgress("Exporting...");
+  return exportVisibleLikedVideos();
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "EXPORT_VISIBLE_LIKED_VIDEOS") {
+    try {
+      const count = exportVisibleLikedVideos();
+      sendResponse({ ok: true, count });
+    } catch (error) {
+      sendResponse({ ok: false, error: error.message });
+    }
+
+    return true;
+  }
+
+  if (message?.type === "autoScrollExport") {
+  console.log("content script received autoScrollExport");
+
+  sendResponse({ ok: true, started: true });
+
+  autoScrollAndExportLikedVideos()
+    .then(count => {
+      console.log(`auto-scroll export finished: ${count} items`);
+      sendProgress(`Exported ${count} items.`);
+    })
+    .catch(error => {
+      console.error("auto-scroll export failed", error);
+      sendProgress(`Export failed: ${error.message}`);
+    });
+
+  return false;
+}
+  return false;
 });

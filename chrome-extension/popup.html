@@ -19,6 +19,11 @@
       font-size: 18px;
     }
 
+    .button-stack {
+      display: grid;
+      gap: 8px;
+    }
+
     button {
       width: 100%;
       min-height: 40px;
@@ -29,6 +34,12 @@
       font: inherit;
       font-weight: 700;
       cursor: pointer;
+    }
+
+    .secondary-button {
+      border-color: #dedbd2;
+      background: #ffffff;
+      color: #202427;
     }
 
     button:disabled {
@@ -50,8 +61,10 @@
 </head>
 <body>
   <h1>YouTube Liked Exporter</h1>
-  <button id="exportButton" type="button">Export visible liked videos</button>
-  <p>Scroll the activity page first to load more items.</p>
+  <div class="button-stack">
+    <button id="exportButton" type="button">Export visible liked videos</button>
+  </div>
+  <p>Scroll the activity page manually to load more items, then click Export.</p>
   <p id="status" aria-live="polite"></p>
   <script src="popup.js"></script>
 </body>
