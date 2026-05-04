@@ -21,3 +21,9 @@ Organize your YouTube liked videos with:
 ## Stack
 - Vanilla JS
 - LocalStorage
+
+## Preview
+
+![screenshot](./screenshot1.png)
+![screenshot](./screenshot2.png)
+![screenshot](./screenshot3.png)
