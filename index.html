@@ -65,6 +65,21 @@
       justify-content: flex-end;
     }
 
+    .backup-reminder {
+      align-self: center;
+      padding: 7px 10px;
+      border: 1px solid #d9c8ba;
+      border-radius: var(--radius);
+      background: var(--active);
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .backup-reminder[hidden] {
+      display: none;
+    }
+
     .stat {
       min-width: 104px;
       padding: 11px 14px;
@@ -693,6 +708,7 @@
           <strong id="savedCount">0</strong>
           <span>categorized</span>
         </div>
+        <div id="backupReminder" class="backup-reminder" hidden>Backup recommended</div>
       </div>
     </header>
 
@@ -1088,6 +1104,11 @@
     const categoryStorageKey = "youtubeLikedVideoCategoryList";
     const videoStorageKey = "youtubeLikedVideoLibrary";
     const videoCategoryStorageKey = "youtubeLikedVideoCategories";
+    const deletedVideoUrlsStorageKey = "youtubeLikedVideoDeletedUrls";
+    const lastBackupAtStorageKey = "youtubeLikedVideoLastBackupAt";
+    const indexedDbName = "youtubeLikedVideoOrganizer";
+    const indexedDbVersion = 1;
+    const indexedDbStoreName = "appState";
     const searchInput = document.querySelector("#searchInput");
     const categoryFilter = document.querySelector("#categoryFilter");
     const sortSelect = document.querySelector("#sortSelect");
@@ -1113,39 +1134,185 @@
     const videoList = document.querySelector("#videoList");
     const visibleCount = document.querySelector("#visibleCount");
     const savedCount = document.querySelector("#savedCount");
+    const backupReminder = document.querySelector("#backupReminder");
 
-    let videos = loadVideos();
-    let savedCategories = loadSavedCategories();
-    let categories = loadCategories();
+    let videos = [];
+    let savedCategories = {};
+    let categories = defaultCategories.slice();
+    let deletedVideoUrls = [];
+    let appMetadata = {};
     let activeMonth = "All";
     let activeDate = "All";
     let calendarMonth = getMonthKey(getTodayKey());
     let addingCategoryForVideoId = null;
     let renamingCategory = null;
 
-    function loadVideos() {
-      const saved = localStorage.getItem(videoStorageKey);
+    const storage = {
+      db: null,
+
+      open() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(indexedDbName, indexedDbVersion);
+
+          request.onupgradeneeded = () => {
+            const db = request.result;
+
+            if (!db.objectStoreNames.contains(indexedDbStoreName)) {
+              db.createObjectStore(indexedDbStoreName);
+            }
+          };
+
+          request.onsuccess = () => {
+            this.db = request.result;
+            resolve(this.db);
+          };
+
+          request.onerror = () => {
+            reject(request.error);
+          };
+        });
+      },
+
+      get(key) {
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(indexedDbStoreName, "readonly");
+          const store = transaction.objectStore(indexedDbStoreName);
+          const request = store.get(key);
+
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
+
+      set(key, value) {
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(indexedDbStoreName, "readwrite");
+          const store = transaction.objectStore(indexedDbStoreName);
+          const request = store.put(value, key);
+
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      },
+
+      async saveState(updates) {
+        await Promise.all(
+          Object.entries(updates).map(([key, value]) => this.set(key, value))
+        );
+      }
+    };
+
+    function readLegacyJson(key, fallback) {
+      const saved = localStorage.getItem(key);
 
       if (!saved) {
-        return [];
+        return fallback;
       }
 
       try {
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? mergeVideos([], parsed) : [];
+        return JSON.parse(saved);
       } catch {
-        return [];
+        return fallback;
       }
     }
 
+    function loadLegacyVideos() {
+      const parsed = readLegacyJson(videoStorageKey, []);
+      return Array.isArray(parsed) ? mergeVideos([], parsed) : [];
+    }
+
+    function loadLegacyDeletedVideoUrls() {
+      const parsed = readLegacyJson(deletedVideoUrlsStorageKey, []);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    }
+
     function saveVideos() {
-      localStorage.setItem(videoStorageKey, JSON.stringify(videos));
+      storage.set("videos", videos).catch(error => {
+        console.error("Could not save videos to IndexedDB.", error);
+      });
+    }
+
+    function saveDeletedVideoUrls() {
+      storage.set("deleted_video_urls", deletedVideoUrls).catch(error => {
+        console.error("Could not save deleted URLs to IndexedDB.", error);
+      });
+    }
+
+    function addDeletedVideoUrl(url) {
+      const cleanUrl = String(url || "").trim();
+
+      if (!cleanUrl || deletedVideoUrls.includes(cleanUrl)) {
+        return;
+      }
+
+      deletedVideoUrls.push(cleanUrl);
+      saveDeletedVideoUrls();
     }
 
     function loadSampleVideosForTesting() {
       videos = sampleVideos.slice();
       saveVideos();
       render();
+    }
+
+    async function loadAppState() {
+      await storage.open();
+
+      const hasIndexedDbState = await storage.get("has_indexed_db_state");
+
+      if (!hasIndexedDbState) {
+        const legacyVideos = loadLegacyVideos();
+        const legacyCategories = loadLegacyCategories();
+        const legacySavedCategories = loadLegacySavedCategories();
+        const legacyDeletedVideoUrls = loadLegacyDeletedVideoUrls();
+        const legacyLastBackupAt = localStorage.getItem(lastBackupAtStorageKey);
+        const legacyMetadata = legacyLastBackupAt ? { lastBackupAt: legacyLastBackupAt } : {};
+
+        await storage.saveState({
+          videos: legacyVideos,
+          categories: legacyCategories,
+          video_categories: legacySavedCategories,
+          deleted_video_urls: legacyDeletedVideoUrls,
+          metadata: legacyMetadata,
+          has_indexed_db_state: true
+        });
+      }
+
+      const [
+        storedVideos,
+        storedCategories,
+        storedSavedCategories,
+        storedDeletedVideoUrls,
+        storedMetadata
+      ] = await Promise.all([
+        storage.get("videos"),
+        storage.get("categories"),
+        storage.get("video_categories"),
+        storage.get("deleted_video_urls"),
+        storage.get("metadata")
+      ]);
+
+      videos = Array.isArray(storedVideos) ? mergeVideos([], storedVideos) : [];
+      categories = Array.isArray(storedCategories)
+        ? mergeCategories(["Uncategorized"], storedCategories)
+        : defaultCategories.slice();
+      savedCategories =
+        storedSavedCategories && typeof storedSavedCategories === "object"
+          ? storedSavedCategories
+          : {};
+      deletedVideoUrls = Array.isArray(storedDeletedVideoUrls)
+        ? storedDeletedVideoUrls.filter(Boolean)
+        : [];
+      appMetadata =
+        storedMetadata && typeof storedMetadata === "object" && !Array.isArray(storedMetadata)
+          ? storedMetadata
+          : {};
+    }
+
+    function saveMetadata() {
+      storage.set("metadata", appMetadata).catch(error => {
+        console.error("Could not save metadata to IndexedDB.", error);
+      });
     }
 
     function mergeVideos(baseVideos, extraVideos) {
@@ -1170,49 +1337,25 @@
       return merged;
     }
 
-    function loadSavedCategories() {
-      const saved = localStorage.getItem(videoCategoryStorageKey);
-
-      if (!saved) {
-        return {};
-      }
-
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return {};
-      }
+    function loadLegacySavedCategories() {
+      const parsed = readLegacyJson(videoCategoryStorageKey, {});
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
     }
 
-    function loadCategories() {
-      const saved = localStorage.getItem(categoryStorageKey);
+    function loadLegacyCategories() {
+      const parsedCategories = readLegacyJson(categoryStorageKey, null);
 
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-
-          if (Array.isArray(parsed)) {
-            return mergeCategories(["Uncategorized"], parsed);
-          }
-        } catch {
-          return defaultCategories.slice();
-        }
+      if (Array.isArray(parsedCategories)) {
+        return mergeCategories(["Uncategorized"], parsedCategories);
       }
 
-      const oldSaved = localStorage.getItem(oldCategoryStorageKey);
+      const oldParsedCategories = readLegacyJson(oldCategoryStorageKey, null);
 
-      if (!oldSaved) {
-        return defaultCategories.slice();
+      if (Array.isArray(oldParsedCategories)) {
+        return mergeCategories(defaultCategories, oldParsedCategories);
       }
 
-      try {
-        const parsed = JSON.parse(oldSaved);
-        return Array.isArray(parsed)
-          ? mergeCategories(defaultCategories, parsed)
-          : defaultCategories.slice();
-      } catch {
-        return defaultCategories.slice();
-      }
+      return defaultCategories.slice();
     }
 
     function mergeCategories(baseCategories, extraCategories) {
@@ -1233,11 +1376,15 @@
     }
 
     function saveCategoryList() {
-      localStorage.setItem(categoryStorageKey, JSON.stringify(categories));
+      storage.set("categories", categories).catch(error => {
+        console.error("Could not save categories to IndexedDB.", error);
+      });
     }
 
     function saveCategories() {
-      localStorage.setItem(videoCategoryStorageKey, JSON.stringify(savedCategories));
+      storage.set("video_categories", savedCategories).catch(error => {
+        console.error("Could not save video categories to IndexedDB.", error);
+      });
     }
 
     function getVideoCategory(videoId) {
@@ -1262,6 +1409,27 @@
         padDatePart(today.getMonth() + 1),
         padDatePart(today.getDate())
       ].join("-");
+    }
+
+    function isBackupRecommended() {
+      const lastBackupAt = appMetadata.lastBackupAt;
+
+      if (videos.length === 0) {
+        return false;
+      }
+
+      if (!lastBackupAt) {
+        return true;
+      }
+
+      const lastBackupTime = new Date(lastBackupAt).getTime();
+
+      if (Number.isNaN(lastBackupTime)) {
+        return true;
+      }
+
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      return Date.now() - lastBackupTime > sevenDaysMs;
     }
 
     function parseLocalDateKey(value) {
@@ -1494,12 +1662,15 @@
 
     function buildExportData() {
       return {
+        version: 1,
+        exported_at: new Date().toISOString(),
         videos: videos.map(video => ({
           ...video,
           category: getVideoCategory(video.id),
           liked_at: getDateKey(video.liked_at)
         })),
-        categories: categories.slice()
+        categories: categories.slice(),
+        deleted_video_urls: deletedVideoUrls.slice()
       };
     }
 
@@ -1519,10 +1690,13 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      appMetadata.lastBackupAt = new Date().toISOString();
+      saveMetadata();
       backupMessage.textContent = `Exported ${videos.length} videos and ${categories.length} categories.`;
+      render();
     }
 
-    function importVideos() {
+    async function importVideos() {
       let parsedItems;
 
       try {
@@ -1555,6 +1729,13 @@
           return;
         }
 
+        const url = String(item.url).trim();
+
+        if (deletedVideoUrls.includes(url)) {
+          skippedCount += 1;
+          return;
+        }
+
         const rawCategory = String(item.category || "Uncategorized").trim() || "Uncategorized";
         const existingCategory = categories.find(
           category => category.toLowerCase() === rawCategory.toLowerCase()
@@ -1565,7 +1746,6 @@
           categories.push(importedCategory);
         }
 
-        const url = String(item.url).trim();
         const existingVideo = existingByUrl.get(url);
 
         if (existingVideo) {
@@ -1595,9 +1775,18 @@
         addedCount += 1;
       });
 
-      saveVideos();
-      saveCategoryList();
-      saveCategories();
+      try {
+        await storage.saveState({
+          videos,
+          categories,
+          video_categories: savedCategories
+        });
+      } catch (error) {
+        console.error("Could not save imported videos to IndexedDB.", error);
+        importMessage.textContent = "Import parsed, but saving failed. Check the console.";
+        return;
+      }
+
       fillCategoryControls();
       importInput.value = "";
       importMessage.textContent =
@@ -1605,7 +1794,7 @@
       render();
     }
 
-    function removeVideo(videoId) {
+    async function removeVideo(videoId) {
       const video = videos.find(item => item.id === videoId);
 
       if (!video) {
@@ -1619,9 +1808,19 @@
       }
 
       videos = videos.filter(item => item.id !== videoId);
+      addDeletedVideoUrl(video.url);
       delete savedCategories[videoId];
-      saveVideos();
-      saveCategories();
+      try {
+        await storage.saveState({
+          videos,
+          video_categories: savedCategories,
+          deleted_video_urls: deletedVideoUrls
+        });
+      } catch (error) {
+        console.error("Could not save removed video to IndexedDB.", error);
+        importMessage.textContent = "Remove failed while saving. Check the console.";
+        return;
+      }
 
       if (activeDate !== "All" && !videos.some(item => getDateKey(item.liked_at) === activeDate)) {
         activeDate = "All";
@@ -1957,6 +2156,7 @@
       savedCount.textContent = Object.values(savedCategories)
         .filter(category => category && category !== "Uncategorized")
         .length;
+      backupReminder.hidden = !isBackupRecommended();
       if (activeDate !== "All") {
         monthFilterLabel.textContent = `Showing ${activeMonth}, date ${activeDate}`;
       } else {
@@ -2217,10 +2417,20 @@
     categoryFilter.addEventListener("change", render);
     sortSelect.addEventListener("change", render);
 
-    fillCategoryControls();
-    render()
+    async function initApp() {
+      videoList.innerHTML = '<div class="empty">Loading your library...</div>';
 
-    console.log(localStorage.clear());
+      try {
+        await loadAppState();
+        fillCategoryControls();
+        render();
+      } catch (error) {
+        console.error("Could not load IndexedDB state.", error);
+        videoList.innerHTML = '<div class="empty">Could not load local data. Check the console for details.</div>';
+      }
+    }
+
+    initApp();
   </script>
 </body>
 </html>

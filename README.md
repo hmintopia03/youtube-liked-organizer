@@ -1,53 +1,110 @@
 # YouTube Liked Video Organizer
 
-Organize your YouTube liked videos with:
-- categories
-- calendar view
-- monthly history
-- import/export (JSON/CSV)
-- Chrome extension export
+A personal tool to organize and understand your YouTube liked videos over time.
+
+## Overview
+
+YouTube liked videos quickly become hard to navigate.  
+This app turns your likes into a structured system:
+
+- categorize videos
+- search and filter
+- view your interests over time (calendar + monthly history)
+
+All data is stored locally in your browser.
+
+---
 
 ## Features
-- Import YouTube liked videos
-- Categorize and filter
-- Calendar-based viewing
-- Local storage (no backend)
 
-## Usage
-Open `index.html` in your browser. The app stores your videos and categories in `localStorage`, so there is no backend or account setup.
+- Import YouTube liked videos (JSON / CSV)
+- Chrome extension for exporting liked activity
+- Category management (add / rename / delete)
+- Search, filter, and sort
+- Calendar view by date
+- Monthly interest history
+- Remove videos from your list
+- Persistent storage using IndexedDB
+- Export / backup your data
 
-### Chrome Extension Workflow
-1. Open the YouTube / Google Activity page that shows your liked video activity.
-2. Scroll the activity page first to load more liked activity items.
-3. Click the Chrome extension.
-4. Choose either:
-   - `Export visible liked videos` for only the currently loaded visible items.
-   - `Auto-scroll and export` to let the extension scroll, load more items, then export.
-5. The extension downloads a JSON file.
-6. Open the app.
-7. Expand `Import videos`.
-8. Paste or drag the exported JSON into the import box.
-9. Click `Import`.
-10. Use search, filters, calendar, history, and categories to organize the imported videos.
+---
 
-### Manual Import
-You can also paste JSON or CSV directly into the app import box.
+## How to Use
 
-Required fields:
-- `title`
-- `channel`
-- `url`
-- `liked_at`
+### 1. Export your YouTube liked videos
 
-Optional field:
-- `category`
+1. Open your Google Activity page:
+   https://myactivity.google.com/
 
-### Limitation
-The extractor depends on the YouTube / Google Activity page DOM. If Google changes the page structure, the extractor may need updates.
+2. Find your YouTube liked activity
 
-## Stack
-- Vanilla JS
-- LocalStorage
+3. Scroll down to load more items
+
+4. Use the Chrome extension:
+   → Click "Export visible liked videos"
+
+---
+
+### 2. Import into the app
+
+- Paste JSON into the import area  
+  or  
+- Use the import button
+
+---
+
+### 3. Organize
+
+- Assign categories
+- Filter by category or keyword
+- Explore your history via calendar or monthly view
+
+---
+
+## Data & Storage
+
+- Data is stored locally using IndexedDB
+- Your data persists across reloads
+- No account or backend required
+
+---
+
+## Backup (Important)
+
+Your data is stored locally in your browser.
+
+To avoid losing data:
+- Use the Export / Backup feature regularly
+
+---
+
+## Limitations
+
+- Data depends on the YouTube / Google Activity page structure  
+- If the page changes, the extractor may need updates  
+- Auto-scroll is not used; manual scrolling is recommended for reliability  
+
+---
+
+## Tech Stack
+
+- Vanilla JavaScript
+- HTML / CSS
+- IndexedDB (for persistence)
+- Chrome Extension (for data extraction)
+
+---
+
+## Project Status
+
+Initial version completed.
+
+Future improvements may include:
+- UI refinements
+- smarter category suggestions
+- improved data import UX
+
+---
 
 ## Screenshots / GIFs
 
@@ -59,6 +116,3 @@ Current screenshots:
 
 GIF walkthrough placeholder:
 
-<!-- Add a GIF here when available, for example:
-![workflow demo](./demo.gif)
--->
