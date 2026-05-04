@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Liked Exporter</title>
+  <style>
+    body {
+      width: 260px;
+      margin: 0;
+      padding: 14px;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #202427;
+      background: #f6f5f1;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    button {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #8f5f45;
+      border-radius: 10px;
+      background: #8f5f45;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    p {
+      margin: 10px 0 0;
+      color: #69716f;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    #status {
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Liked Exporter</h1>
+  <button id="exportButton" type="button">Export visible liked videos</button>
+  <p>Scroll the activity page first to load more items.</p>
+  <p id="status" aria-live="polite"></p>
+  <script src="popup.js"></script>
+</body>
+</html>

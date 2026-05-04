@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Liked Exporter",
+  "version": "1.0.0",
+  "description": "Export visible YouTube/Google Activity liked-video items as JSON.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": [
+    "https://myactivity.google.com/*",
+    "https://www.youtube.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube Liked Exporter"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://myactivity.google.com/*",
+        "https://www.youtube.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}

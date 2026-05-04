@@ -1,0 +1,2108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Liked Video Organizer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f5f1;
+      --panel: #ffffff;
+      --text: #202427;
+      --muted: #69716f;
+      --line: #dedbd2;
+      --line-soft: #ece9e2;
+      --accent: #8f5f45;
+      --accent-dark: #6f4733;
+      --accent-soft: #f4ebe5;
+      --control: #f3f1eb;
+      --active: #fbf4ef;
+      --shadow: 0 8px 20px rgba(32, 36, 39, 0.05);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      width: min(1280px, calc(100% - 32px));
+      margin: 24px auto;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .stat {
+      min-width: 104px;
+      padding: 11px 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 8px 18px rgba(32, 36, 39, 0.04);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .left-column,
+    .right-column {
+      min-width: 0;
+    }
+
+    .left-column {
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .right-column {
+      display: grid;
+      gap: 16px;
+    }
+
+    .category-manager {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 8px;
+      padding: 8px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .import-panel {
+      margin-bottom: 8px;
+      padding: 8px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .utility-section summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .utility-section summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .utility-section summary::after {
+      content: "+";
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .utility-section[open] summary::after {
+      content: "-";
+    }
+
+    .utility-section > :not(summary) {
+      margin-top: 8px;
+    }
+
+    .import-panel textarea {
+      width: 100%;
+      min-height: 88px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .import-panel textarea.drag-over {
+      border-color: var(--accent);
+      background: var(--active);
+      box-shadow: 0 0 0 3px rgba(143, 95, 69, 0.12);
+    }
+
+    .import-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .category-message {
+      grid-column: 1 / -1;
+      min-height: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .manage-categories {
+      margin-bottom: 8px;
+      padding: 8px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .category-list {
+      display: grid;
+      gap: 2px;
+    }
+
+    .category-item {
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) auto auto;
+      gap: 4px;
+      align-items: center;
+      min-height: 32px;
+      padding: 3px 0;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .category-item:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .category-name {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .category-item button {
+      min-height: 28px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .category-item input {
+      min-height: 30px;
+      padding: 5px 8px;
+      font-size: 13px;
+    }
+
+    .secondary-button {
+      border-color: var(--line);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .secondary-button:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--text);
+    }
+
+    .active-filter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 0;
+      padding: 13px 16px;
+      border: 1px solid #d8c4b5;
+      border-radius: var(--radius);
+      background: #fffaf6;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(32, 36, 39, 0.04);
+    }
+
+    button {
+      min-height: 32px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 5px 10px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      border-color: var(--line-soft);
+      background: var(--panel);
+      color: var(--muted);
+      cursor: default;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    }
+
+    .inline-category-input {
+      width: 100%;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 3px solid rgba(143, 95, 69, 0.16);
+      border-color: var(--accent);
+    }
+
+    .video-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .history {
+      margin-bottom: 8px;
+      padding: 12px;
+      border: 1px solid #d9c8ba;
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .history h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .date-history {
+      display: none;
+    }
+
+    .date-history.visible {
+      display: block;
+    }
+
+    .month-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .calendar {
+      margin-bottom: 8px;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .calendar-header h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 6px;
+    }
+
+    .calendar-nav button {
+      min-height: 28px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      align-items: stretch;
+    }
+
+    .calendar-weekday {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .calendar-day {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      width: 100%;
+      height: 42px;
+      min-width: 0;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--muted);
+      font: inherit;
+      text-align: left;
+      padding: 5px;
+      cursor: default;
+      overflow: hidden;
+    }
+
+    .calendar-day.has-activity {
+      border-color: #d9c8ba;
+      background: #fffaf6;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .calendar-day.has-activity:hover {
+      border-color: var(--accent);
+      background: var(--active);
+      transform: translateY(-1px);
+    }
+
+    .calendar-day.active {
+      border-color: #b78d72;
+      background: var(--active);
+      box-shadow: inset 3px 0 0 #b78d72;
+    }
+
+    .calendar-day.empty-day {
+      visibility: hidden;
+    }
+
+    .day-number {
+      display: block;
+      font-weight: 800;
+      line-height: 1;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .day-count {
+      display: block;
+      margin-top: 3px;
+      min-height: 12px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .year-group {
+      display: grid;
+      gap: 5px;
+    }
+
+    .year-title {
+      margin: 4px 0 1px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .month,
+    .date-row {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .month:hover,
+    .date-row:hover {
+      border-color: var(--line);
+      background: #faf8f3;
+      transform: translateY(-1px);
+    }
+
+    .month:first-child,
+    .date-row:first-child {
+      padding-top: 7px;
+    }
+
+    .month.active,
+    .date-row.active {
+      border: 1px solid #b78d72;
+      border-radius: var(--radius);
+      background: var(--active);
+      box-shadow: inset 3px 0 0 #b78d72;
+    }
+
+    .month-title,
+    .date-title {
+      margin-bottom: 3px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .month-detail,
+    .date-detail {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .video {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 190px;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    .video:hover {
+      border-color: #d5c8bc;
+      box-shadow: 0 8px 20px rgba(32, 36, 39, 0.045);
+      transform: translateY(-1px);
+    }
+
+    .thumbnail {
+      display: none;
+      place-items: center;
+      width: 112px;
+      aspect-ratio: 16 / 9;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #2f3947, #d93025);
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .video h2 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .category-control {
+      justify-self: stretch;
+    }
+
+    .video-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
+
+    .remove-video {
+      min-height: 30px;
+      border-color: var(--line-soft);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .remove-video:hover:not(:disabled) {
+      border-color: #c9b9aa;
+      background: var(--control);
+      color: var(--text);
+    }
+
+    .empty {
+      padding: 36px;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      background: var(--control);
+      text-align: center;
+      color: var(--muted);
+    }
+
+    @media (max-width: 780px) {
+      header {
+        display: block;
+      }
+
+      .stats {
+        justify-content: flex-start;
+        margin-top: 18px;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .left-column {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+
+      .category-manager {
+        grid-template-columns: 1fr;
+      }
+
+      .category-item {
+        grid-template-columns: 1fr;
+      }
+
+      .video {
+        grid-template-columns: 1fr;
+      }
+
+      .category-control {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Liked Video Organizer</h1>
+        <p>Sort, search, filter, and categorize a sample set of liked YouTube videos.</p>
+      </div>
+      <div class="stats" aria-live="polite">
+        <div class="stat">
+          <strong id="visibleCount">0</strong>
+          <span>shown</span>
+        </div>
+        <div class="stat">
+          <strong id="savedCount">0</strong>
+          <span>categorized</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="dashboard">
+      <aside class="left-column" aria-label="Navigation and filters">
+        <section class="history" aria-labelledby="historyTitle">
+          <h2 id="historyTitle">Monthly interest history</h2>
+          <div id="monthlyHistory" class="month-list"></div>
+        </section>
+
+        <section id="dateHistorySection" class="history date-history" aria-labelledby="dateHistoryTitle">
+          <h2 id="dateHistoryTitle">Dates in this month</h2>
+          <div id="dateHistory" class="month-list"></div>
+        </section>
+
+        <section class="calendar" aria-labelledby="calendarTitle">
+          <div class="calendar-header">
+            <h2 id="calendarTitle">Calendar</h2>
+            <div class="calendar-nav">
+              <button id="prevCalendarMonth" class="secondary-button" type="button">Prev</button>
+              <button id="nextCalendarMonth" class="secondary-button" type="button">Next</button>
+            </div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <section class="toolbar" aria-label="Video controls">
+          <div>
+            <label for="searchInput">Search</label>
+            <input id="searchInput" type="search" placeholder="Search by title or channel">
+          </div>
+          <div>
+            <label for="categoryFilter">Category</label>
+            <select id="categoryFilter"></select>
+          </div>
+          <div>
+            <label for="sortSelect">Sort by</label>
+            <select id="sortSelect">
+              <option value="liked_at_desc">Liked date, newest</option>
+              <option value="liked_at_asc">Liked date, oldest</option>
+              <option value="title_asc">Title, A-Z</option>
+              <option value="title_desc">Title, Z-A</option>
+              <option value="channel_asc">Channel, A-Z</option>
+              <option value="channel_desc">Channel, Z-A</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="category-manager" aria-label="Category management">
+          <div>
+            <label for="newCategoryInput">Add category</label>
+            <input id="newCategoryInput" type="text" placeholder="New category name">
+          </div>
+          <button id="addCategoryButton" type="button">Add category</button>
+          <div id="categoryMessage" class="category-message" aria-live="polite"></div>
+        </section>
+
+        <details class="import-panel utility-section">
+          <summary>Import videos</summary>
+          <label for="importInput">Paste JSON or CSV</label>
+          <textarea id="importInput" placeholder="title,channel,url,liked_at,category"></textarea>
+          <div class="import-actions">
+            <button id="importButton" type="button">Import</button>
+          </div>
+          <div id="importMessage" class="category-message" aria-live="polite"></div>
+        </details>
+
+        <details class="import-panel utility-section">
+          <summary>Export / Backup</summary>
+          <div class="import-actions">
+            <button id="exportButton" type="button">Export Data</button>
+          </div>
+          <div id="backupMessage" class="category-message" aria-live="polite"></div>
+        </details>
+
+        <details class="manage-categories utility-section">
+          <summary>Manage Categories</summary>
+          <div id="categoryList" class="category-list"></div>
+        </details>
+      </aside>
+
+      <section class="right-column" aria-label="Videos">
+        <div class="active-filter">
+          <span id="monthFilterLabel">Showing all months</span>
+          <div>
+            <button id="clearDateButton" type="button">Clear date</button>
+            <button id="clearMonthButton" type="button">All months</button>
+          </div>
+        </div>
+
+        <section id="videoList" class="video-list" aria-live="polite"></section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const sampleVideos = [
+      {
+        id: "v1",
+        title: "Building a Local-First Notes App",
+        channel: "Practical Software",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v1",
+        liked_at: "2026-05-03T09:30:00Z"
+      },
+      {
+        id: "v2",
+        title: "German A1 Listening Practice: Daily Routines",
+        channel: "Easy German Studio",
+        category: "German",
+        url: "https://youtube.com/watch?v=sample-v2",
+        liked_at: "2026-05-01T18:15:00Z"
+      },
+      {
+        id: "v3",
+        title: "React State Patterns That Stay Readable",
+        channel: "Frontend Field Notes",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v3",
+        liked_at: "2026-05-01T20:20:00Z"
+      },
+      {
+        id: "v4",
+        title: "Beginner Strength Routine With No Gym",
+        channel: "Everyday Fitness",
+        category: "Fitness",
+        url: "https://youtube.com/watch?v=sample-v4",
+        liked_at: "2026-04-26T13:05:00Z"
+      },
+      {
+        id: "v5",
+        title: "Spring Capsule Wardrobe Basics",
+        channel: "Calm Closet",
+        category: "Fashion",
+        url: "https://youtube.com/watch?v=sample-v5",
+        liked_at: "2026-04-18T02:45:00Z"
+      },
+      {
+        id: "v6",
+        title: "Cozy Jazz for Deep Work",
+        channel: "Room Tone Radio",
+        category: "Music",
+        url: "https://youtube.com/watch?v=sample-v6",
+        liked_at: "2026-04-08T22:10:00Z"
+      },
+      {
+        id: "v7",
+        title: "Designing a Better Morning Routine",
+        channel: "Life Systems",
+        category: "Life",
+        url: "https://youtube.com/watch?v=sample-v7",
+        liked_at: "2026-03-28T07:20:00Z"
+      },
+      {
+        id: "v8",
+        title: "Reading Research Papers Without Getting Lost",
+        channel: "Research Methods Lab",
+        category: "Research",
+        url: "https://youtube.com/watch?v=sample-v8",
+        liked_at: "2026-03-17T16:40:00Z"
+      },
+      {
+        id: "v9",
+        title: "Tiny Apartment Desk Setup Tour",
+        channel: "Calm Workspace",
+        category: "Life",
+        url: "https://youtube.com/watch?v=sample-v9",
+        liked_at: "2026-03-17T11:55:00Z"
+      },
+      {
+        id: "v10",
+        title: "JavaScript Array Methods Explained Clearly",
+        channel: "Frontend Field Notes",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v10",
+        liked_at: "2026-02-24T10:10:00Z"
+      },
+      {
+        id: "v11",
+        title: "German Cases Made Less Painful",
+        channel: "Grammar Garage",
+        category: "German",
+        url: "https://youtube.com/watch?v=sample-v11",
+        liked_at: "2026-02-13T20:35:00Z"
+      },
+      {
+        id: "v12",
+        title: "Street Style Ideas for Rainy Days",
+        channel: "City Fit Check",
+        category: "Fashion",
+        url: "https://youtube.com/watch?v=sample-v12",
+        liked_at: "2026-02-02T05:50:00Z"
+      },
+      {
+        id: "v13",
+        title: "Why Space Telescopes See Back in Time",
+        channel: "Night Sky Explained",
+        category: "Research",
+        url: "https://youtube.com/watch?v=sample-v13",
+        liked_at: "2026-01-25T22:10:00Z"
+      },
+      {
+        id: "v14",
+        title: "Simple Mobility Routine for Desk Workers",
+        channel: "Everyday Fitness",
+        category: "Fitness",
+        url: "https://youtube.com/watch?v=sample-v14",
+        liked_at: "2026-01-14T08:25:00Z"
+      },
+      {
+        id: "v15",
+        title: "Oddly Satisfying Keyboard Builds",
+        channel: "Random Workshop",
+        category: "Random",
+        url: "https://youtube.com/watch?v=sample-v15",
+        liked_at: "2026-01-06T14:45:00Z"
+      },
+      {
+        id: "v16",
+        title: "TypeScript Types for Everyday Apps",
+        channel: "Practical Software",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v16",
+        liked_at: "2025-12-18T12:30:00Z"
+      },
+      {
+        id: "v17",
+        title: "German B1 Speaking Practice: Opinions",
+        channel: "Easy German Studio",
+        category: "German",
+        url: "https://youtube.com/watch?v=sample-v17",
+        liked_at: "2025-12-18T19:40:00Z"
+      },
+      {
+        id: "v18",
+        title: "Winter Running Basics",
+        channel: "Everyday Fitness",
+        category: "Fitness",
+        url: "https://youtube.com/watch?v=sample-v18",
+        liked_at: "2025-11-29T06:15:00Z"
+      },
+      {
+        id: "v19",
+        title: "Minimal Outfits for Cold Weather",
+        channel: "Calm Closet",
+        category: "Fashion",
+        url: "https://youtube.com/watch?v=sample-v19",
+        liked_at: "2025-11-10T03:20:00Z"
+      },
+      {
+        id: "v20",
+        title: "Ambient Piano for Late Work",
+        channel: "Room Tone Radio",
+        category: "Music",
+        url: "https://youtube.com/watch?v=sample-v20",
+        liked_at: "2025-10-22T21:05:00Z"
+      },
+      {
+        id: "v21",
+        title: "Planning a Quiet Weekend",
+        channel: "Life Systems",
+        category: "Life",
+        url: "https://youtube.com/watch?v=sample-v21",
+        liked_at: "2025-10-22T09:10:00Z"
+      },
+      {
+        id: "v22",
+        title: "How to Skim a Literature Review",
+        channel: "Research Methods Lab",
+        category: "Research",
+        url: "https://youtube.com/watch?v=sample-v22",
+        liked_at: "2025-09-15T15:45:00Z"
+      },
+      {
+        id: "v23",
+        title: "Debugging CSS Without Guessing",
+        channel: "Frontend Field Notes",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v23",
+        liked_at: "2025-08-04T10:05:00Z"
+      },
+      {
+        id: "v24",
+        title: "German Pronunciation: U and UE",
+        channel: "Grammar Garage",
+        category: "German",
+        url: "https://youtube.com/watch?v=sample-v24",
+        liked_at: "2025-08-04T18:55:00Z"
+      },
+      {
+        id: "v25",
+        title: "A Surprisingly Good Drawer Organizer",
+        channel: "Random Workshop",
+        category: "Random",
+        url: "https://youtube.com/watch?v=sample-v25",
+        liked_at: "2025-07-19T13:25:00Z"
+      },
+      {
+        id: "v26",
+        title: "Building a Tiny CLI Tool",
+        channel: "Practical Software",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v26",
+        liked_at: "2024-12-30T11:35:00Z"
+      },
+      {
+        id: "v27",
+        title: "Core Workout for Beginners",
+        channel: "Everyday Fitness",
+        category: "Fitness",
+        url: "https://youtube.com/watch?v=sample-v27",
+        liked_at: "2024-12-30T07:05:00Z"
+      },
+      {
+        id: "v28",
+        title: "Why Sleep Changes Your Focus",
+        channel: "Life Systems",
+        category: "Life",
+        url: "https://youtube.com/watch?v=sample-v28",
+        liked_at: "2024-11-16T23:15:00Z"
+      },
+      {
+        id: "v29",
+        title: "Archive Research Notes That You Can Find",
+        channel: "Research Methods Lab",
+        category: "Research",
+        url: "https://youtube.com/watch?v=sample-v29",
+        liked_at: "2024-10-09T17:25:00Z"
+      },
+      {
+        id: "v30",
+        title: "Autumn Layering Without Overthinking",
+        channel: "City Fit Check",
+        category: "Fashion",
+        url: "https://youtube.com/watch?v=sample-v30",
+        liked_at: "2024-10-09T05:45:00Z"
+      },
+      {
+        id: "v31",
+        title: "Lo-Fi Beats for Cleaning",
+        channel: "Room Tone Radio",
+        category: "Music",
+        url: "https://youtube.com/watch?v=sample-v31",
+        liked_at: "2024-09-02T20:00:00Z"
+      },
+      {
+        id: "v32",
+        title: "German Noun Gender Tricks",
+        channel: "Grammar Garage",
+        category: "German",
+        url: "https://youtube.com/watch?v=sample-v32",
+        liked_at: "2024-08-21T08:50:00Z"
+      },
+      {
+        id: "v33",
+        title: "The Weirdest Desk Gadgets Tested",
+        channel: "Random Workshop",
+        category: "Random",
+        url: "https://youtube.com/watch?v=sample-v33",
+        liked_at: "2024-08-21T14:10:00Z"
+      },
+      {
+        id: "v34",
+        title: "CSS Grid Template Areas in Practice",
+        channel: "Frontend Field Notes",
+        category: "Coding",
+        url: "https://youtube.com/watch?v=sample-v34",
+        liked_at: "2024-07-11T16:30:00Z"
+      },
+      {
+        id: "v35",
+        title: "Building a Personal Reset Day",
+        channel: "Life Systems",
+        category: "Life",
+        url: "https://youtube.com/watch?v=sample-v35",
+        liked_at: "2024-06-03T09:00:00Z"
+      }
+    ];
+
+    const defaultCategories = [
+      "Uncategorized",
+      "Coding",
+      "German",
+      "Fitness",
+      "Fashion",
+      "Music",
+      "Life",
+      "Research",
+      "Random"
+    ];
+
+    const oldCategoryStorageKey = "youtubeLikedVideoCustomCategories";
+    const categoryStorageKey = "youtubeLikedVideoCategoryList";
+    const videoStorageKey = "youtubeLikedVideoLibrary";
+    const videoCategoryStorageKey = "youtubeLikedVideoCategories";
+    const searchInput = document.querySelector("#searchInput");
+    const categoryFilter = document.querySelector("#categoryFilter");
+    const sortSelect = document.querySelector("#sortSelect");
+    const newCategoryInput = document.querySelector("#newCategoryInput");
+    const addCategoryButton = document.querySelector("#addCategoryButton");
+    const categoryMessage = document.querySelector("#categoryMessage");
+    const importInput = document.querySelector("#importInput");
+    const importButton = document.querySelector("#importButton");
+    const importMessage = document.querySelector("#importMessage");
+    const exportButton = document.querySelector("#exportButton");
+    const backupMessage = document.querySelector("#backupMessage");
+    const categoryList = document.querySelector("#categoryList");
+    const monthFilterLabel = document.querySelector("#monthFilterLabel");
+    const clearDateButton = document.querySelector("#clearDateButton");
+    const clearMonthButton = document.querySelector("#clearMonthButton");
+    const monthlyHistory = document.querySelector("#monthlyHistory");
+    const dateHistorySection = document.querySelector("#dateHistorySection");
+    const dateHistory = document.querySelector("#dateHistory");
+    const calendarTitle = document.querySelector("#calendarTitle");
+    const calendarGrid = document.querySelector("#calendarGrid");
+    const prevCalendarMonth = document.querySelector("#prevCalendarMonth");
+    const nextCalendarMonth = document.querySelector("#nextCalendarMonth");
+    const videoList = document.querySelector("#videoList");
+    const visibleCount = document.querySelector("#visibleCount");
+    const savedCount = document.querySelector("#savedCount");
+
+    let videos = loadVideos();
+    let savedCategories = loadSavedCategories();
+    let categories = loadCategories();
+    let activeMonth = "All";
+    let activeDate = "All";
+    let calendarMonth = getMonthKey(new Date().toISOString());
+    let addingCategoryForVideoId = null;
+    let renamingCategory = null;
+
+    function loadVideos() {
+      const saved = localStorage.getItem(videoStorageKey);
+
+      if (!saved) {
+        return [];
+      }
+
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? mergeVideos([], parsed) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveVideos() {
+      localStorage.setItem(videoStorageKey, JSON.stringify(videos));
+    }
+
+    function loadSampleVideosForTesting() {
+      videos = sampleVideos.slice();
+      saveVideos();
+      render();
+    }
+
+    function mergeVideos(baseVideos, extraVideos) {
+      const merged = [];
+      const seenUrls = new Set();
+
+      [...baseVideos, ...extraVideos].forEach(video => {
+        if (!video || !video.url) {
+          return;
+        }
+
+        const urlKey = video.url.trim();
+
+        if (seenUrls.has(urlKey)) {
+          return;
+        }
+
+        seenUrls.add(urlKey);
+        merged.push(video);
+      });
+
+      return merged;
+    }
+
+    function loadSavedCategories() {
+      const saved = localStorage.getItem(videoCategoryStorageKey);
+
+      if (!saved) {
+        return {};
+      }
+
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {};
+      }
+    }
+
+    function loadCategories() {
+      const saved = localStorage.getItem(categoryStorageKey);
+
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+
+          if (Array.isArray(parsed)) {
+            return mergeCategories(["Uncategorized"], parsed);
+          }
+        } catch {
+          return defaultCategories.slice();
+        }
+      }
+
+      const oldSaved = localStorage.getItem(oldCategoryStorageKey);
+
+      if (!oldSaved) {
+        return defaultCategories.slice();
+      }
+
+      try {
+        const parsed = JSON.parse(oldSaved);
+        return Array.isArray(parsed)
+          ? mergeCategories(defaultCategories, parsed)
+          : defaultCategories.slice();
+      } catch {
+        return defaultCategories.slice();
+      }
+    }
+
+    function mergeCategories(baseCategories, extraCategories) {
+      const merged = [];
+
+      [...baseCategories, ...extraCategories].forEach(category => {
+        const cleanCategory = String(category || "").trim();
+        const exists = merged.some(
+          item => item.toLowerCase() === cleanCategory.toLowerCase()
+        );
+
+        if (cleanCategory && !exists) {
+          merged.push(cleanCategory);
+        }
+      });
+
+      return merged;
+    }
+
+    function saveCategoryList() {
+      localStorage.setItem(categoryStorageKey, JSON.stringify(categories));
+    }
+
+    function saveCategories() {
+      localStorage.setItem(videoCategoryStorageKey, JSON.stringify(savedCategories));
+    }
+
+    function getVideoCategory(videoId) {
+      const video = videos.find(item => item.id === videoId);
+      const savedCategory = savedCategories[videoId];
+
+      if (categories.includes(savedCategory)) {
+        return savedCategory;
+      }
+
+      return video.category || "Uncategorized";
+    }
+
+    function formatDate(value) {
+      return new Intl.DateTimeFormat("en", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      }).format(new Date(value));
+    }
+
+    function getMonthKey(value) {
+      return value.slice(0, 7);
+    }
+
+    function getDateKey(value) {
+      return value.slice(0, 10);
+    }
+
+    function shiftCalendarMonth(offset) {
+      const [year, month] = calendarMonth.split("-").map(Number);
+      const nextDate = new Date(year, month - 1 + offset, 1);
+      calendarMonth = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+      render();
+    }
+
+    function renderCalendar() {
+      const [year, month] = calendarMonth.split("-").map(Number);
+      const firstDay = new Date(year, month - 1, 1);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const dateCounts = {};
+      const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      videos.forEach(video => {
+        const dateKey = getDateKey(video.liked_at);
+
+        if (getMonthKey(video.liked_at) === calendarMonth) {
+          dateCounts[dateKey] = (dateCounts[dateKey] || 0) + 1;
+        }
+      });
+
+      calendarTitle.textContent = `Calendar ${calendarMonth}`;
+      calendarGrid.innerHTML = [
+        ...weekdays.map(day => `<div class="calendar-weekday">${day}</div>`),
+        ...Array.from({ length: firstDay.getDay() }, () => '<div class="calendar-day empty-day"></div>'),
+        ...Array.from({ length: daysInMonth }, (_, index) => {
+          const day = index + 1;
+          const dateKey = `${calendarMonth}-${String(day).padStart(2, "0")}`;
+          const count = dateCounts[dateKey] || 0;
+          const activityClass = count > 0 ? " has-activity" : "";
+          const activeClass = activeDate === dateKey ? " active" : "";
+          const disabled = count === 0 ? "disabled" : "";
+
+          return `
+            <button class="calendar-day${activityClass}${activeClass}" type="button" data-calendar-date="${dateKey}" ${disabled}>
+              <span class="day-number">${day}</span>
+              <span class="day-count">${count ? count : ""}</span>
+            </button>
+          `;
+        })
+      ].join("");
+    }
+
+    function normalizeLikedAt(value) {
+      const rawValue = String(value || "").trim();
+
+      if (/^\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+        return rawValue.slice(0, 10);
+      }
+
+      const parsedDate = new Date(rawValue);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+      }
+
+      return parsedDate.toISOString().slice(0, 10);
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        const nextChar = text[index + 1];
+
+        if (char === '"' && inQuotes && nextChar === '"') {
+          cell += '"';
+          index += 1;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          row.push(cell.trim());
+          cell = "";
+        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+          if (char === "\r" && nextChar === "\n") {
+            index += 1;
+          }
+
+          row.push(cell.trim());
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else {
+          cell += char;
+        }
+      }
+
+      row.push(cell.trim());
+      rows.push(row);
+
+      return rows.filter(items => items.some(item => item));
+    }
+
+    function parseImportText(text) {
+      const cleanText = text.trim();
+
+      if (!cleanText) {
+        throw new Error("Paste JSON or CSV before importing.");
+      }
+
+      if (cleanText.startsWith("[") || cleanText.startsWith("{")) {
+        const parsed = JSON.parse(cleanText);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      }
+
+      const rows = parseCsv(cleanText);
+      const headers = rows[0].map(header => header.trim());
+
+      return rows.slice(1).map(row => {
+        const item = {};
+
+        headers.forEach((header, index) => {
+          item[header] = row[index] || "";
+        });
+
+        return item;
+      });
+    }
+
+    function buildExportData() {
+      return {
+        videos: videos.map(video => ({
+          ...video,
+          category: getVideoCategory(video.id),
+          liked_at: getDateKey(video.liked_at)
+        })),
+        categories: categories.slice()
+      };
+    }
+
+    function exportData() {
+      console.log("export clicked");
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `youtube-interest-backup-${today}.json`;
+      const blob = new Blob([JSON.stringify(buildExportData(), null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      backupMessage.textContent = `Exported ${videos.length} videos and ${categories.length} categories.`;
+    }
+
+    function importVideos() {
+      let parsedItems;
+
+      try {
+        parsedItems = parseImportText(importInput.value);
+      } catch (error) {
+        importMessage.textContent = error.message;
+        return;
+      }
+
+      const requiredFields = ["title", "channel", "url", "liked_at"];
+      const existingByUrl = new Map(videos.map(video => [video.url, video]));
+      let addedCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      parsedItems.forEach((item, index) => {
+        const missingField = requiredFields.find(field => !String(item[field] || "").trim());
+
+        if (missingField) {
+          skippedCount += 1;
+          importMessage.textContent = `Row ${index + 1} is missing "${missingField}".`;
+          return;
+        }
+
+        const likedAt = normalizeLikedAt(item.liked_at);
+
+        if (!likedAt) {
+          skippedCount += 1;
+          importMessage.textContent = `Row ${index + 1} has an invalid liked_at value.`;
+          return;
+        }
+
+        const rawCategory = String(item.category || "Uncategorized").trim() || "Uncategorized";
+        const existingCategory = categories.find(
+          category => category.toLowerCase() === rawCategory.toLowerCase()
+        );
+        const importedCategory = existingCategory || rawCategory;
+
+        if (!existingCategory) {
+          categories.push(importedCategory);
+        }
+
+        const url = String(item.url).trim();
+        const existingVideo = existingByUrl.get(url);
+
+        if (existingVideo) {
+          existingVideo.title = String(item.title).trim();
+          existingVideo.channel = String(item.channel).trim();
+          existingVideo.liked_at = likedAt;
+
+          if (getVideoCategory(existingVideo.id) === "Uncategorized") {
+            savedCategories[existingVideo.id] = importedCategory;
+          }
+
+          updatedCount += 1;
+          return;
+        }
+
+        const newVideo = {
+          id: `imported-${Date.now()}-${index}`,
+          title: String(item.title).trim(),
+          channel: String(item.channel).trim(),
+          url,
+          liked_at: likedAt,
+          category: importedCategory
+        };
+
+        videos.push(newVideo);
+        existingByUrl.set(url, newVideo);
+        addedCount += 1;
+      });
+
+      saveVideos();
+      saveCategoryList();
+      saveCategories();
+      fillCategoryControls();
+      importInput.value = "";
+      importMessage.textContent =
+        `Imported ${addedCount} new and updated ${updatedCount}. Skipped ${skippedCount}.`;
+      render();
+    }
+
+    function removeVideo(videoId) {
+      const video = videos.find(item => item.id === videoId);
+
+      if (!video) {
+        return;
+      }
+
+      const confirmed = window.confirm(`Remove "${video.title}" from this local app?`);
+
+      if (!confirmed) {
+        return;
+      }
+
+      videos = videos.filter(item => item.id !== videoId);
+      delete savedCategories[videoId];
+      saveVideos();
+      saveCategories();
+
+      if (activeDate !== "All" && !videos.some(item => getDateKey(item.liked_at) === activeDate)) {
+        activeDate = "All";
+      }
+
+      if (activeMonth !== "All" && !videos.some(item => getMonthKey(item.liked_at) === activeMonth)) {
+        activeMonth = "All";
+      }
+
+      render();
+    }
+
+    function readDroppedImportFile(file) {
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        importInput.value = reader.result;
+        importMessage.textContent = `Loaded ${file.name}. Importing...`;
+        importVideos();
+      };
+
+      reader.onerror = () => {
+        importMessage.textContent = "Could not read dropped file.";
+      };
+
+      reader.readAsText(file);
+    }
+
+    function addCategoryToList(categoryName) {
+      const newCategory = categoryName.trim();
+      const categoryExists = categories.some(
+        category => category.toLowerCase() === newCategory.toLowerCase()
+      );
+
+      if (!newCategory) {
+        categoryMessage.textContent = "Enter a category name first.";
+        return null;
+      }
+
+      if (categoryExists) {
+        categoryMessage.textContent = `"${newCategory}" already exists.`;
+        return null;
+      }
+
+      categories.push(newCategory);
+      saveCategoryList();
+      categoryMessage.textContent = `Added "${newCategory}".`;
+      fillCategoryControls();
+      return newCategory;
+    }
+
+    function addCategory() {
+      const addedCategory = addCategoryToList(newCategoryInput.value);
+
+      if (!addedCategory) {
+        return;
+      }
+
+      newCategoryInput.value = "";
+      render();
+    }
+
+    function fillCategoryControls() {
+      const currentFilter = categoryFilter.value || "All";
+      categoryFilter.innerHTML = [
+        '<option value="All">All categories</option>',
+        ...categories.map(category => `<option value="${category}">${category}</option>`)
+      ].join("");
+      categoryFilter.value = categories.includes(currentFilter) ? currentFilter : "All";
+    }
+
+    function renderCategoryList() {
+      categoryList.innerHTML = categories.map(category => {
+        const isUncategorized = category === "Uncategorized";
+
+        if (renamingCategory === category) {
+          return `
+            <div class="category-item">
+              <input type="text" value="${category}" data-rename-category="${category}">
+              <button class="secondary-button" type="button" data-save-rename="${category}">Save</button>
+              <button class="secondary-button" type="button" data-cancel-rename="${category}">Cancel</button>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="category-item">
+            <div class="category-name">${category}</div>
+            <button class="secondary-button" type="button" data-start-rename="${category}" ${isUncategorized ? "disabled" : ""}>Rename</button>
+            <button class="secondary-button" type="button" data-delete-category="${category}" ${isUncategorized ? "disabled" : ""}>Delete</button>
+          </div>
+        `;
+      }).join("");
+
+      const renameInput = categoryList.querySelector("input[data-rename-category]");
+
+      if (renameInput) {
+        renameInput.focus();
+        renameInput.select();
+      }
+    }
+
+    function renameCategory(oldCategory, newCategoryValue) {
+      const newCategory = newCategoryValue.trim();
+      const duplicate = categories.some(
+        category =>
+          category.toLowerCase() === newCategory.toLowerCase() &&
+          category.toLowerCase() !== oldCategory.toLowerCase()
+      );
+
+      if (oldCategory === "Uncategorized") {
+        categoryMessage.textContent = "Uncategorized cannot be renamed.";
+        return;
+      }
+
+      if (!newCategory) {
+        categoryMessage.textContent = "Enter a category name first.";
+        return;
+      }
+
+      if (duplicate) {
+        categoryMessage.textContent = `"${newCategory}" already exists.`;
+        return;
+      }
+
+      videos.forEach(video => {
+        if (getVideoCategory(video.id) === oldCategory) {
+          savedCategories[video.id] = newCategory;
+        }
+      });
+
+      categories = categories.map(category =>
+        category === oldCategory ? newCategory : category
+      );
+
+      if (categoryFilter.value === oldCategory) {
+        fillCategoryControls();
+        categoryFilter.value = newCategory;
+      } else {
+        fillCategoryControls();
+      }
+
+      saveCategoryList();
+      saveCategories();
+      renamingCategory = null;
+      categoryMessage.textContent = `Renamed "${oldCategory}" to "${newCategory}".`;
+      render();
+    }
+
+    function deleteCategory(categoryToDelete) {
+      if (categoryToDelete === "Uncategorized") {
+        categoryMessage.textContent = "Uncategorized cannot be deleted.";
+        return;
+      }
+
+      videos.forEach(video => {
+        if (getVideoCategory(video.id) === categoryToDelete) {
+          savedCategories[video.id] = "Uncategorized";
+        }
+      });
+
+      categories = categories.filter(category => category !== categoryToDelete);
+
+      if (categoryFilter.value === categoryToDelete) {
+        categoryFilter.value = "All";
+      }
+
+      saveCategoryList();
+      saveCategories();
+      fillCategoryControls();
+      renamingCategory = null;
+      categoryMessage.textContent = `Deleted "${categoryToDelete}". Videos using it are now Uncategorized.`;
+      render();
+    }
+
+    function renderMonthlyHistory() {
+      const years = {};
+
+      videos.forEach(video => {
+        const yearKey = video.liked_at.slice(0, 4);
+        const monthKey = getMonthKey(video.liked_at);
+        const category = getVideoCategory(video.id);
+
+        if (!years[yearKey]) {
+          years[yearKey] = {};
+        }
+
+        if (!years[yearKey][monthKey]) {
+          years[yearKey][monthKey] = {
+            total: 0,
+            categories: {}
+          };
+        }
+
+        years[yearKey][monthKey].total += 1;
+        years[yearKey][monthKey].categories[category] =
+          (years[yearKey][monthKey].categories[category] || 0) + 1;
+      });
+
+      monthlyHistory.innerHTML = Object.keys(years)
+        .sort()
+        .reverse()
+        .map(yearKey => {
+          const monthRows = Object.keys(years[yearKey])
+            .sort()
+            .reverse()
+            .map(monthKey => {
+              const month = years[yearKey][monthKey];
+              const categoryCounts = Object.entries(month.categories)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([category, count]) => `${category}: ${count}`)
+                .join(" | ");
+              const activeClass = monthKey === activeMonth ? " active" : "";
+
+              return `
+                <button class="month${activeClass}" type="button" data-month="${monthKey}">
+                  <div class="month-title">${monthKey}: ${month.total} videos</div>
+                  <div class="month-detail">${categoryCounts}</div>
+                </button>
+              `;
+            })
+            .join("");
+
+          return `
+            <div class="year-group">
+              <div class="year-title">${yearKey}</div>
+              ${monthRows}
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function renderDateHistory() {
+      if (activeMonth === "All") {
+        dateHistorySection.classList.remove("visible");
+        dateHistory.innerHTML = "";
+        return;
+      }
+
+      const dates = {};
+
+      videos
+        .filter(video => getMonthKey(video.liked_at) === activeMonth)
+        .forEach(video => {
+          const dateKey = getDateKey(video.liked_at);
+          const category = getVideoCategory(video.id);
+
+          if (!dates[dateKey]) {
+            dates[dateKey] = {
+              total: 0,
+              categories: {}
+            };
+          }
+
+          dates[dateKey].total += 1;
+          dates[dateKey].categories[category] =
+            (dates[dateKey].categories[category] || 0) + 1;
+        });
+
+      dateHistorySection.classList.add("visible");
+      dateHistory.innerHTML = Object.keys(dates)
+        .sort()
+        .reverse()
+        .map(dateKey => {
+          const date = dates[dateKey];
+          const categoryCounts = Object.entries(date.categories)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([category, count]) => `${category}: ${count}`)
+            .join(" | ");
+          const activeClass = dateKey === activeDate ? " active" : "";
+
+          return `
+            <button class="date-row${activeClass}" type="button" data-date="${dateKey}">
+              <div class="date-title">${dateKey}: ${date.total} videos</div>
+              <div class="date-detail">${categoryCounts}</div>
+            </button>
+          `;
+        })
+        .join("");
+    }
+
+    function render() {
+      const query = searchInput.value.trim().toLowerCase();
+      const activeCategory = categoryFilter.value;
+      const sortValue = sortSelect.value;
+
+      const filteredVideos = videos
+        .filter(video => {
+          const category = getVideoCategory(video.id);
+          const matchesSearch =
+            video.title.toLowerCase().includes(query) ||
+            video.channel.toLowerCase().includes(query);
+          const matchesCategory =
+            activeCategory === "All" || category === activeCategory;
+          const matchesMonth =
+            activeMonth === "All" || getMonthKey(video.liked_at) === activeMonth;
+          const matchesDate =
+            activeDate === "All" || getDateKey(video.liked_at) === activeDate;
+
+          return matchesSearch && matchesCategory && matchesMonth && matchesDate;
+        })
+        .sort((a, b) => {
+          if (sortValue === "liked_at_desc") {
+            return new Date(b.liked_at) - new Date(a.liked_at);
+          }
+
+          if (sortValue === "liked_at_asc") {
+            return new Date(a.liked_at) - new Date(b.liked_at);
+          }
+
+          if (sortValue === "title_asc") {
+            return a.title.localeCompare(b.title);
+          }
+
+          if (sortValue === "title_desc") {
+            return b.title.localeCompare(a.title);
+          }
+
+          if (sortValue === "channel_asc") {
+            return a.channel.localeCompare(b.channel);
+          }
+
+          return b.channel.localeCompare(a.channel);
+        });
+
+      visibleCount.textContent = filteredVideos.length;
+      savedCount.textContent = Object.values(savedCategories)
+        .filter(category => category && category !== "Uncategorized")
+        .length;
+      if (activeDate !== "All") {
+        monthFilterLabel.textContent = `Showing ${activeMonth}, date ${activeDate}`;
+      } else {
+        monthFilterLabel.textContent =
+          activeMonth === "All" ? "Showing all months" : `Showing ${activeMonth}`;
+      }
+      clearDateButton.disabled = activeDate === "All";
+      clearMonthButton.disabled = activeMonth === "All";
+      renderCategoryList();
+      renderCalendar();
+      renderMonthlyHistory();
+      renderDateHistory();
+
+      if (filteredVideos.length === 0) {
+        videoList.innerHTML = videos.length === 0
+          ? '<div class="empty">No videos yet. Import your YouTube liked videos to begin.</div>'
+          : '<div class="empty">No liked videos match these controls.</div>';
+        return;
+      }
+
+      videoList.innerHTML = filteredVideos.map(video => {
+        const selectedCategory = getVideoCategory(video.id);
+        const options = categories.map(category => {
+          const selected = category === selectedCategory ? "selected" : "";
+          return `<option value="${category}" ${selected}>${category}</option>`;
+        }).join("");
+        const categoryControl = addingCategoryForVideoId === video.id
+          ? `<input class="inline-category-input" type="text" data-new-category-video-id="${video.id}" placeholder="New category name">`
+          : `
+              <select id="category-${video.id}" data-video-id="${video.id}">
+                ${options}
+                <option value="__add_new__">+ Add new category</option>
+              </select>
+            `;
+
+        return `
+          <article class="video">
+            <div class="thumbnail" aria-hidden="true">PLAY</div>
+            <div>
+              <h2>${video.title}</h2>
+              <div class="meta">
+                <span>${video.channel}</span>
+                <span>Liked ${formatDate(video.liked_at)}</span>
+              </div>
+            </div>
+            <div class="category-control">
+              <label for="category-${video.id}">Category</label>
+              ${categoryControl}
+              <div class="video-actions">
+                <button class="remove-video" type="button" data-remove-video-id="${video.id}">Remove</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      const inlineInput = videoList.querySelector(".inline-category-input");
+
+      if (inlineInput) {
+        inlineInput.focus();
+      }
+    }
+
+    videoList.addEventListener("change", event => {
+      if (!event.target.matches("select[data-video-id]")) {
+        return;
+      }
+
+      const videoId = event.target.dataset.videoId;
+
+      if (event.target.value === "__add_new__") {
+        addingCategoryForVideoId = videoId;
+        render();
+        return;
+      }
+
+      savedCategories[videoId] = event.target.value;
+      saveCategories();
+      render();
+    });
+
+    videoList.addEventListener("click", event => {
+      const removeButton = event.target.closest("button[data-remove-video-id]");
+
+      if (!removeButton) {
+        return;
+      }
+
+      removeVideo(removeButton.dataset.removeVideoId);
+    });
+
+    videoList.addEventListener("keydown", event => {
+      if (!event.target.matches("input[data-new-category-video-id]")) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        addingCategoryForVideoId = null;
+        categoryMessage.textContent = "";
+        render();
+        return;
+      }
+
+      if (event.key !== "Enter") {
+        return;
+      }
+
+      const videoId = event.target.dataset.newCategoryVideoId;
+      const addedCategory = addCategoryToList(event.target.value);
+
+      if (!addedCategory) {
+        return;
+      }
+
+      savedCategories[videoId] = addedCategory;
+      saveCategories();
+      addingCategoryForVideoId = null;
+      render();
+    });
+
+    monthlyHistory.addEventListener("click", event => {
+      const monthButton = event.target.closest("button[data-month]");
+
+      if (!monthButton) {
+        return;
+      }
+
+      activeMonth = monthButton.dataset.month;
+      calendarMonth = activeMonth;
+      activeDate = "All";
+      render();
+    });
+
+    dateHistory.addEventListener("click", event => {
+      const dateButton = event.target.closest("button[data-date]");
+
+      if (!dateButton) {
+        return;
+      }
+
+      activeDate = dateButton.dataset.date;
+      calendarMonth = getMonthKey(activeDate);
+      render();
+    });
+
+    calendarGrid.addEventListener("click", event => {
+      const dayButton = event.target.closest("button[data-calendar-date]");
+
+      if (!dayButton || dayButton.disabled) {
+        return;
+      }
+
+      activeDate = dayButton.dataset.calendarDate;
+      activeMonth = getMonthKey(activeDate);
+      calendarMonth = activeMonth;
+      render();
+    });
+
+    prevCalendarMonth.addEventListener("click", () => {
+      shiftCalendarMonth(-1);
+    });
+
+    nextCalendarMonth.addEventListener("click", () => {
+      shiftCalendarMonth(1);
+    });
+
+    clearDateButton.addEventListener("click", () => {
+      activeDate = "All";
+      render();
+    });
+
+    clearMonthButton.addEventListener("click", () => {
+      activeMonth = "All";
+      activeDate = "All";
+      render();
+    });
+
+    exportButton.addEventListener("click", () => {
+      exportData();
+    });
+    importButton.addEventListener("click", importVideos);
+    importInput.addEventListener("dragover", event => {
+      event.preventDefault();
+      importInput.classList.add("drag-over");
+    });
+    importInput.addEventListener("dragleave", () => {
+      importInput.classList.remove("drag-over");
+    });
+    importInput.addEventListener("drop", event => {
+      event.preventDefault();
+      importInput.classList.remove("drag-over");
+      readDroppedImportFile(event.dataTransfer.files[0]);
+    });
+
+    addCategoryButton.addEventListener("click", addCategory);
+    newCategoryInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        addCategory();
+      }
+    });
+
+    categoryList.addEventListener("click", event => {
+      const renameButton = event.target.closest("button[data-start-rename]");
+      const saveButton = event.target.closest("button[data-save-rename]");
+      const cancelButton = event.target.closest("button[data-cancel-rename]");
+      const deleteButton = event.target.closest("button[data-delete-category]");
+
+      if (renameButton) {
+        renamingCategory = renameButton.dataset.startRename;
+        categoryMessage.textContent = "";
+        render();
+        return;
+      }
+
+      if (saveButton) {
+        const oldCategory = saveButton.dataset.saveRename;
+        const input = categoryList.querySelector("input[data-rename-category]");
+
+        if (input) {
+          renameCategory(oldCategory, input.value);
+        }
+
+        return;
+      }
+
+      if (cancelButton) {
+        renamingCategory = null;
+        categoryMessage.textContent = "";
+        render();
+        return;
+      }
+
+      if (deleteButton) {
+        deleteCategory(deleteButton.dataset.deleteCategory);
+      }
+    });
+
+    categoryList.addEventListener("keydown", event => {
+      if (!event.target.matches("input[data-rename-category]")) {
+        return;
+      }
+
+      const oldCategory = event.target.dataset.renameCategory;
+
+      if (event.key === "Escape") {
+        renamingCategory = null;
+        categoryMessage.textContent = "";
+        render();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        renameCategory(oldCategory, event.target.value);
+      }
+    });
+
+    searchInput.addEventListener("input", render);
+    categoryFilter.addEventListener("change", render);
+    sortSelect.addEventListener("change", render);
+
+    fillCategoryControls();
+    render()
+
+    console.log(localStorage.clear());
+  </script>
+</body>
+</html>
